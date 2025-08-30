@@ -1,52 +1,41 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista Geral de Participantes</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto p-8">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-blue-800">Todos os Participantes Cadastrados</h1>
-            <a href="{% url 'lista_eventos' %}" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">
-                &larr; Voltar à Página Inicial
-            </a>
-        </div>
+{% extends 'core/base.html' %}
 
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="bg-gray-50 border-b">
-                        <tr>
-                            <th class="p-4 font-semibold text-gray-600">Matrícula</th>
-                            <th class="p-4 font-semibold text-gray-600">Nome</th>
-                            <th class="p-4 font-semibold text-gray-600">Email</th>
-                            <th class="p-4 font-semibold text-gray-600 text-center">QR Code</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in participantes %}
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="p-4 text-gray-700">{{ p.matricula }}</td>
-                            <td class="p-4 text-gray-900 font-medium">{{ p.nome }}</td>
-                            <td class="p-4 text-gray-700">{{ p.email }}</td>
-                            <td class="p-4 flex justify-center">
-                                {% if p.qr_code_img %}
-                                <img src="{{ p.qr_code_img.url }}" alt="QR Code de {{ p.nome }}" class="w-24 h-24 border rounded">
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="p-4 text-center text-gray-500">Nenhum participante cadastrado ainda.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+{% block title %}Lista Geral de Participantes{% endblock %}
+
+{% block content %}
+<a href="{% url 'lista_eventos' %}" class="text-blue-600 hover:underline mb-6 block">&larr; Voltar para o painel de eventos</a>
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Lista Geral de Participantes</h1>
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+            <thead class="bg-gray-200">
+                <tr>
+                    <th class="py-2 px-4 text-left">Nome</th>
+                    <th class="py-2 px-4 text-left">Matrícula</th>
+                    <th class="py-2 px-4 text-left">Email</th>
+                    <th class="py-2 px-4 text-center">QR Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for participante in participantes %}
+                <tr class="border-b">
+                    <td class="py-2 px-4">{{ participante.nome }}</td>
+                    <td class="py-2 px-4">{{ participante.matricula }}</td>
+                    <td class="py-2 px-4">{{ participante.email }}</td>
+                    <td class="py-2 px-4 flex justify-center">
+                        {% if participante.qr_code_img %}
+                            <img src="{{ participante.qr_code_img.url }}" alt="QR Code de {{ participante.nome }}" class="h-20 w-20">
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="py-4 px-4 text-center text-gray-500">Nenhum participante cadastrado ainda.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}
+

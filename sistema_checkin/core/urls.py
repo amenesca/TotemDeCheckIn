@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # --- ROTAS DE GERENCIAMENTO GERAL ---
+    # --- ROTAS DE GESTÃO GERAL ---
     path('cadastro-geral/', views.cadastro_geral_csv, name='cadastro_geral'),
     path('participantes/', views.lista_geral_participantes, name='lista_geral_participantes'),
     
@@ -12,12 +12,12 @@ urlpatterns = [
     path('evento/<int:evento_id>/inscrever_csv/', views.inscrever_via_csv, name='inscrever_via_csv'),
     path('evento/<int:evento_id>/checkin/', views.pagina_checkin, name='pagina_checkin'),
     
-    # --- ROTAS DE API E AÇÕES (NOVAS ROTAS ABAIXO) ---
+    # --- ROTAS DE API E AÇÕES ---
     path('api/checkin/<int:evento_id>/', views.api_checkin, name='api_checkin'),
-    
-    # ROTA PARA PROMOVER UM PARTICIPANTE DA LISTA DE ESPERA
     path('inscricao/<int:inscricao_id>/promover/', views.promover_participante, name='promover_participante'),
-    
-    # ROTA PARA EXPORTAR A LISTA DE PRESENÇA EM CSV
     path('evento/<int:evento_id>/exportar_csv/', views.exportar_presenca_csv, name='exportar_presenca_csv'),
+    
+    # ROTA PARA REMOVER A PRESENÇA DE UM PARTICIPANTE
+    path('inscricao/<int:inscricao_id>/remover_presenca/', views.remover_presenca, name='remover_presenca'),
 ]
+

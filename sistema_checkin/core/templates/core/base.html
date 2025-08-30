@@ -1,0 +1,47 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- O block 'title' permite que cada página defina o seu próprio título -->
+    <title>{% block title %}Sistema de Check-in{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen">
+
+    <!-- Barra de Navegação -->
+    <nav class="bg-gray-800 text-white shadow-lg">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <a href="{% url 'lista_eventos' %}" class="text-xl font-bold">Check-in de Eventos IFF</a>
+            <a href="/admin" class="text-sm hover:text-gray-300">Admin</a>
+        </div>
+    </nav>
+
+    <!-- Conteúdo Principal da Página -->
+    <main class="flex-grow">
+        <div class="container mx-auto p-4 md:p-8">
+
+            <!-- Sistema de Mensagens do Django -->
+            {% if messages %}
+            <div class="mb-6">
+                {% for message in messages %}
+                <div class="p-4 rounded-md shadow-md {% if message.tags == 'success' %}bg-green-100 border-l-4 border-green-500 text-green-800{% elif message.tags == 'error' %}bg-red-100 border-l-4 border-red-500 text-red-800{% else %}bg-blue-100 border-l-4 border-blue-500 text-blue-800{% endif %}" role="alert">
+                    <p class="font-bold">{{ message }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- O block 'content' é onde o conteúdo de cada página individual será inserido -->
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="bg-gray-800 text-white text-center p-4 mt-auto">
+        <p>&copy; {% now "Y" %} - Desenvolvido para o IEEE/IFF.</p>
+    </footer>
+
+</body>
+</html>
