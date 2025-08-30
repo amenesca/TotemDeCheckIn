@@ -1,1 +1,3 @@
 # TotemDeCheckIn
+
+Necessita de Django
