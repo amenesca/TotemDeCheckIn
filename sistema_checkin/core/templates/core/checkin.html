@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-in para {{ evento.nome }}</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-800 text-white flex flex-col justify-center items-center h-screen m-0 p-4">
+
+    <div class="w-full max-w-lg text-center">
+        <!-- NOVO BOTÃO PARA VOLTAR -->
+        <a href="{% url 'detalhe_evento' evento.id %}" class="absolute top-4 left-4 text-blue-400 hover:text-blue-300 hover:underline text-lg">&larr; Voltar para Detalhes do Evento</a>
+        
+        <h1 class="text-3xl font-bold mb-2">Check-in: {{ evento.nome }}</h1>
+        <p class="text-gray-300 mb-6">Aponte o QR Code para a câmera.</p>
+        
+        <div id="reader" class="w-full border-4 border-dashed border-gray-600 rounded-lg overflow-hidden"></div>
+
+        <div id="result-container" class="mt-6 p-4 rounded-lg font-bold text-xl" style="display: none;">
+            <span id="result-message"></span>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = `/api/checkin/{{ evento.id }}/`;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const resultContainer = document.getElementById('result-container');
+            const resultMessage = document.getElementById('result-message');
+            let isScanning = true;
+
+            function showMessage(message, type) {
+                resultContainer.style.display = 'block';
+                let bgColor, textColor;
+                if (type === 'sucesso') {
+                    bgColor = 'bg-green-500';
+                    textColor = 'text-white';
+                } else if (type === 'erro') {
+                    bgColor = 'bg-red-500';
+                    textColor = 'text-white';
+                } else if (type === 'aviso') {
+                    bgColor = 'bg-yellow-500';
+                    textColor = 'text-black';
+                } else { // 'espera'
+                    bgColor = 'bg-blue-500';
+                    textColor = 'text-white';
+                }
+                resultContainer.className = `mt-6 p-4 rounded-lg font-bold text-xl ${bgColor} ${textColor}`;
+                resultMessage.textContent = message;
+            }
+
+            function resetScanner() {
+                resultContainer.style.display = 'none';
+                isScanning = true;
+            }
+
+            function onScanSuccess(decodedText, decodedResult) {
+                if (!isScanning) return;
+                isScanning = false;
+
+                fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_unico_qr: decodedText }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showMessage(data.mensagem, data.status);
+                })
+                .catch(error => {
+                    showMessage('Erro de comunicação com o servidor.', 'erro');
+                })
+                .finally(() => {
+                    setTimeout(resetScanner, 5000); 
+                });
+            }
+
+            function onScanFailure(error) {
+                // Silencioso para não poluir a tela
+            }
+
+            const html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+                .catch(err => {
+                    showMessage("Erro ao iniciar a câmera.", 'erro');
+                });
+        });
+    </script>
+
+</body>
+</html>
+

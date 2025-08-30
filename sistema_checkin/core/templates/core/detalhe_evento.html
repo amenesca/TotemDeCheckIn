@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhes de {{ evento.nome }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <a href="{% url 'lista_eventos' %}" class="text-blue-600 hover:underline mb-6 block">&larr; Voltar para a lista de eventos</a>
+        <h1 class="text-4xl font-bold text-gray-800">{{ evento.nome }}</h1>
+        <p class="text-lg text-gray-600 mb-8">Data: {{ evento.data|date:"d/m/Y, H:i" }}</p>
+
+        {% if novos_inscritos_nomes %}
+        <div class="mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg shadow-md">
+            <h3 class="font-bold text-lg mb-2">Inscrições Realizadas com Sucesso!</h3>
+            <ul class="list-disc list-inside text-sm">
+                {% for nome in novos_inscritos_nomes %}<li>{{ nome }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-10">
+            <h2 class="text-2xl font-semibold mb-4">Inscrever Participantes no Evento</h2>
+            <form action="{% url 'inscrever_via_csv' evento.id %}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <label for="arquivo_csv" class="block text-gray-700 font-medium mb-2">Enviar arquivo CSV (matrícula,nome)</label>
+                <input type="file" name="arquivo_csv" id="arquivo_csv" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                <button type="submit" class="mt-4 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors">Inscrever</button>
+            </form>
+        </div>
+        
+        <a href="{% url 'pagina_checkin' evento.id %}" class="w-full text-center block bg-green-600 text-white font-bold py-4 px-4 rounded-lg hover:bg-green-700 transition-colors text-2xl mb-10">
+            ▶️ Iniciar Check-in
+        </a>
+
+        <!-- Tabela de Presentes -->
+        <div class="mb-8 bg-white p-6 rounded-lg shadow-md">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-xl font-semibold text-green-700">Presentes (Check-in Realizado) - {{ presentes.count }}</h3>
+                <!-- NOVO BOTÃO DE EXPORTAR -->
+                <a href="{% url 'exportar_presenca_csv' evento.id %}" class="bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition-colors text-sm">
+                    Exportar Lista de Presença (CSV)
+                </a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-green-100">
+                        <tr>
+                            <th class="py-2 px-4 text-left">Nome</th>
+                            <th class="py-2 px-4 text-left">Matrícula</th>
+                            <th class="py-2 px-4 text-left">Horário do Check-in</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inscricao in presentes %}
+                        <tr class="border-b">
+                            <td class="py-2 px-4">{{ inscricao.participante.nome }}</td>
+                            <td class="py-2 px-4">{{ inscricao.participante.matricula }}</td>
+                            <td class="py-2 px-4">{{ inscricao.data_checkin|date:"H:i:s" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="py-2 px-4 text-gray-500">Nenhum participante fez check-in ainda.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tabela de Inscritos (Aguardando Check-in) -->
+        <div class="mb-8 bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-semibold text-gray-700 mb-3">Inscritos (Aguardando Check-in) - {{ inscritos_aguardando.count }}</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-200">
+                        <tr><th class="py-2 px-4 text-left">Nome</th><th class="py-2 px-4 text-left">Matrícula</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for inscricao in inscritos_aguardando %}
+                        <tr class="border-b">
+                            <td class="py-2 px-4">{{ inscricao.participante.nome }}</td>
+                            <td class="py-2 px-4">{{ inscricao.participante.matricula }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="py-2 px-4 text-gray-500">Nenhum participante aguardando check-in.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tabela de Lista de Espera -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-semibold text-yellow-700 mb-3">Lista de Espera - {{ lista_espera.count }}</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-yellow-100">
+                        <tr>
+                            <th class="py-2 px-4 text-left">Nome</th>
+                            <th class="py-2 px-4 text-left">Matrícula</th>
+                            <!-- NOVA COLUNA DE AÇÕES -->
+                            <th class="py-2 px-4 text-left">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inscricao in lista_espera %}
+                        <tr class="border-b">
+                            <td class="py-2 px-4">{{ inscricao.participante.nome }}</td>
+                            <td class="py-2 px-4">{{ inscricao.participante.matricula }}</td>
+                            <td class="py-2 px-4">
+                                <!-- NOVO BOTÃO DE PROMOVER DENTRO DE UM FORMULÁRIO -->
+                                <form action="{% url 'promover_participante' inscricao.id %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="bg-green-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-green-600 transition-colors">
+                                        Promover a Presente
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="py-2 px-4 text-gray-500">A lista de espera está vazia.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
