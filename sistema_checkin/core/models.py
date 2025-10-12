@@ -7,8 +7,12 @@ from django.utils import timezone
 
 class Participante(models.Model):
     nome = models.CharField(max_length=200, verbose_name="Nome Completo")
-    email = models.EmailField(unique=True, verbose_name="E-mail")
-    matricula = models.CharField(max_length=50, unique=True, verbose_name="Matrícula")
+    email = models.EmailField(verbose_name="E-mail") # Garantindo que unique=False, como discutido
+    
+    # --- MODIFICAÇÃO CHAVE ---
+    # Adicionar db_index=True otimiza a busca por este campo.
+    matricula = models.CharField(max_length=50, unique=True, verbose_name="Matrícula", db_index=True)
+    
     id_unico_qr = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name="ID do QR Code")
     qr_code_img = models.ImageField(upload_to='qrcodes/', blank=True, null=True, verbose_name="Imagem do QR Code")
 
@@ -55,7 +59,6 @@ class Inscricao(models.Model):
         self.data_checkin = timezone.now()
         self.save()
     
-    # NOVO MÉTODO PARA REMOVER A PRESENÇA
     def remover_presenca(self):
         """Muda o status para Lista de Espera, limpa o horário do check-in e
         regista a hora em que voltou para a fila para que vá para o final."""
