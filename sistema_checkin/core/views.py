@@ -9,6 +9,7 @@ import json
 import csv
 from django.utils import timezone
 from django.contrib import messages # Importar o messages framework
+from .forms import ParticipanteForm
 
 # --- Visões de Gestão de Eventos ---
 def lista_eventos(request):
@@ -127,51 +128,64 @@ def api_checkin(request, evento_id):
             
     return JsonResponse({'status': 'erro', 'mensagem': 'Método inválido.'}, status=405)
     
-def cadastro_geral_csv(request):
+def cadastro_geral(request):
+    # Independentemente do método, inicializamos sempre os dois formulários
+    manual_form = ParticipanteForm()
+    
+    # Verificamos qual botão de submissão foi pressionado
     if request.method == 'POST':
-        arquivo_csv = request.FILES.get('arquivo_csv')
-        if not arquivo_csv:
-            messages.error(request, "Nenhum ficheiro foi enviado.")
-            return redirect('cadastro_geral')
-        
-        try:
-            conteudo_arquivo = arquivo_csv.read().decode('utf-8-sig')
-            linhas = conteudo_arquivo.splitlines()
-            reader = csv.reader(linhas)
-            criados, atualizados, erros = 0, 0, []
+        if 'manual_add' in request.POST:
+            # Se foi o botão manual, preenchemos esse formulário com os dados do POST
+            manual_form = ParticipanteForm(request.POST)
+            if manual_form.is_valid():
+                manual_form.save()
+                messages.success(request, f"Participante '{manual_form.cleaned_data['nome']}' cadastrado com sucesso!")
+                return redirect('lista_geral_participantes')
 
-            for i, row in enumerate(reader, 1):
-                if not row: continue
+        elif 'upload_csv' in request.POST:
+            # Se foi o botão de CSV, executamos a lógica de upload
+            arquivo_csv = request.FILES.get('arquivo_csv')
+            if not arquivo_csv:
+                messages.error(request, "Nenhum ficheiro foi enviado.")
+                return redirect('cadastro_geral')
+            
+            try:
+                conteudo_arquivo = arquivo_csv.read().decode('utf-8-sig')
+                linhas = conteudo_arquivo.splitlines()
+                reader = csv.reader(linhas)
+                criados, atualizados, erros = 0, 0, []
 
-                # --- MUDANÇA 1: ATUALIZANDO A MENSAGEM DE ERRO ---
-                if len(row) != 3:
-                    erros.append(f"Linha {i}: Formato inválido. Esperava 3 colunas (nome,matricula,email).")
-                    continue
-                
-                # --- MUDANÇA 2: ALTERANDO A ORDEM DE LEITURA ---
-                nome, matricula, email = [field.strip() for field in row]
+                for i, row in enumerate(reader, 1):
+                    if not row: continue
+                    if len(row) != 3:
+                        erros.append(f"Linha {i}: Formato inválido (esperava nome,matricula,email).")
+                        continue
+                    
+                    nome, matricula, email = [field.strip() for field in row]
 
-                if not matricula or not nome or not email:
-                    erros.append(f"Linha {i}: Dados incompletos.")
-                    continue
+                    if not matricula or not nome or not email:
+                        erros.append(f"Linha {i}: Dados incompletos.")
+                        continue
 
-                _, created = Participante.objects.update_or_create(
-                    matricula=matricula,
-                    defaults={'nome': nome, 'email': email}
-                )
-                if created:
-                    criados += 1
-                else:
-                    atualizados += 1
+                    _, created = Participante.objects.update_or_create(
+                        matricula=matricula, defaults={'nome': nome, 'email': email}
+                    )
+                    if created:
+                        criados += 1
+                    else:
+                        atualizados += 1
 
-            messages.success(request, f"Base de dados atualizada: {criados} participantes criados e {atualizados} atualizados.")
-            if erros:
-                messages.warning(request, f"Problemas encontrados: {' | '.join(erros)}")
-            return redirect('lista_geral_participantes')
-        except Exception as e:
-            messages.error(request, f"Ocorreu um erro crítico ao processar o ficheiro: {e}")
-            return redirect('cadastro_geral')
-    return render(request, 'core/cadastro_geral.html')
+                messages.success(request, f"Base de dados atualizada via CSV: {criados} criados e {atualizados} atualizados.")
+                if erros:
+                    messages.warning(request, f"Problemas no CSV: {' | '.join(erros)}")
+                return redirect('lista_geral_participantes')
+            except Exception as e:
+                messages.error(request, f"Ocorreu um erro crítico ao processar o ficheiro: {e}")
+                return redirect('cadastro_geral')
+
+    # Para um pedido GET, ou se o formulário manual for inválido, renderiza a página
+    # A variável 'form' agora chama-se 'manual_form' para maior clareza
+    return render(request, 'core/cadastro_geral.html', {'manual_form': manual_form})
 
 
 def lista_geral_participantes(request):

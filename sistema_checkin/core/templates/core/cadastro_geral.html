@@ -5,19 +5,47 @@
 {% block content %}
 <a href="{% url 'lista_eventos' %}" class="text-blue-600 hover:underline mb-6 block">&larr; Voltar para o painel de eventos</a>
 
-<div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Cadastrar/Atualizar Lista Geral</h1>
-    <p class="text-gray-600 mb-6">
-        Envie um ficheiro CSV com a lista completa de alunos. O sistema irá adicionar os novos alunos e atualizar os dados (nome e email) dos alunos existentes com base na matrícula.
-    </p>
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <label for="arquivo_csv" class="block text-gray-700 font-medium mb-2">Ficheiro CSV (matrícula,nome,email)</label>
-        <input type="file" name="arquivo_csv" id="arquivo_csv" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-        <button type="submit" class="mt-6 w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors">
-            Enviar Lista
-        </button>
-    </form>
+<div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
+    
+    <div class="bg-white p-8 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">Cadastro Manual</h1>
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            {% for field in manual_form %}
+            <div class="mb-4">
+                <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="text-red-600 text-sm mt-1">
+                    {% for error in field.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <button type="submit" name="manual_add" class="mt-4 w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors">
+                Cadastrar Participante
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-white p-8 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">Cadastrar/Atualizar via CSV</h1>
+        <p class="text-gray-600 mb-6">
+            Envie um ficheiro CSV com a lista de alunos no formato <strong>nome,matrícula,email</strong>.
+        </p>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label for="arquivo_csv" class="block text-gray-700 font-medium mb-2">Ficheiro CSV</label>
+            <input type="file" name="arquivo_csv" id="arquivo_csv" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+            <button type="submit" name="upload_csv" class="mt-6 w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors">
+                Enviar Lista CSV
+            </button>
+        </form>
+    </div>
+
 </div>
 {% endblock %}
-

@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     # --- ROTAS DE GESTÃO GERAL ---
-    path('cadastro-geral/', views.cadastro_geral_csv, name='cadastro_geral'),
+    path('cadastro-geral/', views.cadastro_geral, name='cadastro_geral'),
     path('participantes/', views.lista_geral_participantes, name='lista_geral_participantes'),
     
     # --- ROTAS DE EVENTOS ---

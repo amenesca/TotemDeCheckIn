@@ -7,6 +7,12 @@
     <title>Check-in para {{ evento.nome }}</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        #reader video {
+            transform: scaleX(-1);
+        }
+    </style>
 </head>
 <body class="bg-gray-800 text-white flex flex-col justify-center items-center h-screen m-0 p-4">
 
