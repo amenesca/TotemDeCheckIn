@@ -4,15 +4,12 @@ from django.core.files.base import ContentFile
 from io import BytesIO
 import qrcode
 from django.utils import timezone
+import re
 
 class Participante(models.Model):
     nome = models.CharField(max_length=200, verbose_name="Nome Completo")
-    email = models.EmailField(verbose_name="E-mail") # Garantindo que unique=False, como discutido
-    
-    # --- MODIFICAÇÃO CHAVE ---
-    # Adicionar db_index=True otimiza a busca por este campo.
+    email = models.EmailField(verbose_name="E-mail")
     matricula = models.CharField(max_length=50, unique=True, verbose_name="Matrícula", db_index=True)
-    
     id_unico_qr = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name="ID do QR Code")
     qr_code_img = models.ImageField(upload_to='qrcodes/', blank=True, null=True, verbose_name="Imagem do QR Code")
 
@@ -20,16 +17,25 @@ class Participante(models.Model):
         return self.nome
 
     def gerar_e_salvar_qrcode(self):
+        """
+        Gera um QR Code e define o nome do arquivo como 'nome_do_aluno_matricula.png'.
+        """
         buffer = BytesIO()
         img = qrcode.make(str(self.id_unico_qr))
         img.save(buffer, format='PNG')
-        nome_arquivo = f'{self.matricula}.png'
+        
+        # Esta linha agora funcionará porque 're' foi importado
+        nome_seguro = re.sub(r'\s+', '_', self.nome).lower()
+        nome_arquivo = f'{nome_seguro}_{self.matricula}.png'
+        
         self.qr_code_img.save(nome_arquivo, ContentFile(buffer.getvalue()), save=False)
 
     def save(self, *args, **kwargs):
-        if not self.pk or not self.qr_code_img:
+        # Gera o QR Code apenas na primeira vez que o participante é criado
+        if not self.pk:
             self.gerar_e_salvar_qrcode()
         super().save(*args, **kwargs)
+
 
 class Evento(models.Model):
     nome = models.CharField(max_length=255, verbose_name="Nome do Evento")

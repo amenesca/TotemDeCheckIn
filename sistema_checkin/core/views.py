@@ -42,41 +42,29 @@ def inscrever_via_csv(request, evento_id):
         try:
             conteudo_arquivo = arquivo_csv.read().decode('utf-8-sig')
             linhas = conteudo_arquivo.splitlines()
-
-            if not linhas:
-                messages.error(request, "O arquivo de inscrição está vazio.")
-                return redirect('detalhe_evento', evento_id=evento.id)
-
-            novos_inscritos = 0
-            ja_inscritos = 0
-            nao_encontrados = []
+            novos_inscritos, ja_inscritos, nao_encontrados, erros_formato = 0, 0, [], []
             
-            # Carrega todas as matrículas do banco de dados para um set em memória.
-            # Esta é a forma mais rápida e garantida de fazer a verificação.
             todas_as_matriculas_db = set(Participante.objects.values_list('matricula', flat=True))
 
             for i, row in enumerate(csv.reader(linhas), 1):
                 if not row: continue
 
-                matricula_csv = row[0].strip()
+                # --- MUDANÇA 1: VALIDANDO O FORMATO DA LINHA ---
+                if len(row) != 3:
+                    erros_formato.append(str(i))
+                    continue
+                
+                # --- MUDANÇA 2: PEGANDO A MATRÍCULA DA SEGUNDA COLUNA ---
+                matricula_csv = row[1].strip() # Pega o valor do índice 1
                 if not matricula_csv: continue
 
-                # A BUSCA ACONTECE AQUI: em Python puro, comparando strings.
                 if matricula_csv in todas_as_matriculas_db:
-                    try:
-                        # Pega o participante e cria a inscrição
-                        participante = Participante.objects.get(matricula=matricula_csv)
-                        _, created = Inscricao.objects.get_or_create(
-                            participante=participante, 
-                            evento=evento
-                        )
-                        if created:
-                            novos_inscritos += 1
-                        else:
-                            ja_inscritos += 1
-                    except Participante.DoesNotExist:
-                        # Esta exceção não deveria acontecer se a lógica estiver correta, mas é uma salvaguarda
-                        nao_encontrados.append(f"{matricula_csv} (erro inesperado)")
+                    participante = Participante.objects.get(matricula=matricula_csv)
+                    _, created = Inscricao.objects.get_or_create(participante=participante, evento=evento)
+                    if created:
+                        novos_inscritos += 1
+                    else:
+                        ja_inscritos += 1
                 else:
                     nao_encontrados.append(matricula_csv)
 
@@ -85,7 +73,9 @@ def inscrever_via_csv(request, evento_id):
             if ja_inscritos > 0:
                 messages.info(request, f"{ja_inscritos} participantes já estavam inscritos no evento.")
             if nao_encontrados:
-                messages.warning(request, f"As seguintes matrículas do arquivo não foram encontradas no cadastro geral: {', '.join(nao_encontrados)}")
+                messages.warning(request, f"Matrículas não encontradas no cadastro geral: {', '.join(nao_encontrados)}")
+            if erros_formato:
+                 messages.error(request, f"As seguintes linhas foram ignoradas por não conter 3 colunas (nome,matricula,email): {', '.join(erros_formato)}")
 
         except Exception as e:
             messages.error(request, f"Ocorreu um erro ao processar o ficheiro de inscrição: {e}")
@@ -137,7 +127,6 @@ def api_checkin(request, evento_id):
             
     return JsonResponse({'status': 'erro', 'mensagem': 'Método inválido.'}, status=405)
     
-# --- VERSÃO FINAL E DEFINITIVA - CADASTRO GERAL ---
 def cadastro_geral_csv(request):
     if request.method == 'POST':
         arquivo_csv = request.FILES.get('arquivo_csv')
@@ -148,63 +137,40 @@ def cadastro_geral_csv(request):
         try:
             conteudo_arquivo = arquivo_csv.read().decode('utf-8-sig')
             linhas = conteudo_arquivo.splitlines()
-            
-            # Validação para garantir que o arquivo não está vazio
-            if not linhas:
-                messages.error(request, "O arquivo CSV está vazio.")
-                return redirect('cadastro_geral')
-            
             reader = csv.reader(linhas)
-
-            criados = 0
-            atualizados = 0
-            erros = []
+            criados, atualizados, erros = 0, 0, []
 
             for i, row in enumerate(reader, 1):
                 if not row: continue
 
+                # --- MUDANÇA 1: ATUALIZANDO A MENSAGEM DE ERRO ---
                 if len(row) != 3:
-                    erros.append(f"Linha {i}: Formato inválido. Esperava 3 colunas (matrícula,nome,email).")
+                    erros.append(f"Linha {i}: Formato inválido. Esperava 3 colunas (nome,matricula,email).")
                     continue
                 
-                # Limpeza explícita de cada campo para remover quaisquer espaços
-                matricula = row[0].strip()
-                nome = row[1].strip()
-                email = row[2].strip()
+                # --- MUDANÇA 2: ALTERANDO A ORDEM DE LEITURA ---
+                nome, matricula, email = [field.strip() for field in row]
 
                 if not matricula or not nome or not email:
                     erros.append(f"Linha {i}: Dados incompletos.")
                     continue
 
-                try:
-                    # Usando get_or_create para ser mais explícito
-                    participante, created = Participante.objects.get_or_create(
-                        matricula=matricula,
-                        defaults={'nome': nome, 'email': email}
-                    )
-                    if not created:
-                        # Se já existia, atualiza o nome e email
-                        participante.nome = nome
-                        participante.email = email
-                        participante.save()
-                        atualizados += 1
-                    else:
-                        criados += 1
-                except IntegrityError:
-                    erros.append(f"Linha {i}: Erro de integridade. A matrícula '{matricula}' já existe com dados diferentes?")
-                except Exception as e:
-                    erros.append(f"Linha {i}: Erro inesperado ao salvar: {e}")
+                _, created = Participante.objects.update_or_create(
+                    matricula=matricula,
+                    defaults={'nome': nome, 'email': email}
+                )
+                if created:
+                    criados += 1
+                else:
+                    atualizados += 1
 
             messages.success(request, f"Base de dados atualizada: {criados} participantes criados e {atualizados} atualizados.")
             if erros:
                 messages.warning(request, f"Problemas encontrados: {' | '.join(erros)}")
-            
             return redirect('lista_geral_participantes')
-
         except Exception as e:
             messages.error(request, f"Ocorreu um erro crítico ao processar o ficheiro: {e}")
             return redirect('cadastro_geral')
-
     return render(request, 'core/cadastro_geral.html')
 
 
