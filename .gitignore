@@ -1,3 +1,4 @@
 sistema_checkin/db.sqlite3
 sistema_checkin/media/*
+sistema_checkin/.env
 *.pem
