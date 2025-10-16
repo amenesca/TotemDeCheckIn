@@ -6,11 +6,14 @@ Este é um sistema desenvolvido em Django para a gestão de check-in em eventos.
 
 - **Gestão de Participantes:** Cadastro manual ou em massa via upload de arquivo CSV.
 - **QR Codes Permanentes:** Geração automática de um QR Code único para cada participante no momento do cadastro.
-- **Gestão de Eventos:** Crie eventos e inscreva participantes a partir da base geral.
-- **Check-in em Tempo Real:** Uma página de "totem" que usa a câmera para ler os QR Codes e registrar a presença instantaneamente.
-- **Controle de Vagas e Listas:** Gestão de presentes, inscritos aguardando e lista de espera.
+- **Check-in Versátil em Tempo Real:** Página de "totem" que permite o registro de presença por QR Code (usando a câmera com espelhamento inteligente para desktops) ou manualmente, através do número de matrícula do participante.
+- **Gestão de Eventos:** Crie eventos e inscreva participantes a partir da base geral, com controle de vagas e listas de presentes, inscritos e de espera.
+- **Sistema de E-mail Completo:**
+    - **Envio Automático:** O QR Code é enviado por e-mail assim que um participante é cadastrado manualmente.
+    - **Envio Inteligente:** Botão para enviar e-mails apenas para participantes com envios pendentes.
+    - **Envio em Massa e Individual:** Opções para reenviar o e-mail para todos os participantes ou para um único indivíduo, conforme a necessidade.
+    - **Rastreamento de Envios:** O sistema registra e exibe o status de envio do e-mail para cada participante.
 - **Exportação de Dados:** Exporte a lista de presença de um evento para um arquivo CSV.
-- **Envio de QR Code por E-mail:** Funcionalidade para enviar o QR Code permanente para todos os participantes cadastrados, utilizando um servidor SMTP real (Gmail).
 - **Suporte a HTTPS local:** Roda em um servidor de desenvolvimento seguro para permitir o uso da câmera em navegadores modernos.
 
 ## Tecnologias Utilizadas
