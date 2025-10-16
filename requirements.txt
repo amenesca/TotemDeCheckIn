@@ -1,0 +1,8 @@
+django
+pandas
+qrcode
+pillow
+django-extensions
+werkzeug
+pyOpenSSL
+python-dotenv
