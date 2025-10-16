@@ -10,6 +10,8 @@ import csv
 from django.utils import timezone
 from django.contrib import messages # Importar o messages framework
 from .forms import ParticipanteForm
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
 
 # --- Visões de Gestão de Eventos ---
 def lista_eventos(request):
@@ -224,3 +226,52 @@ def exportar_presenca_csv(request, evento_id):
         ])
     return response
 
+@require_POST
+def enviar_emails_gerais_qrcode(request):
+    participantes = Participante.objects.all()
+    
+    if not participantes:
+        messages.warning(request, "Não há participantes cadastrados para enviar e-mails.")
+        return redirect('lista_geral_participantes')
+
+    enviados_com_sucesso = 0
+    erros = []
+
+    for participante in participantes:
+        if not participante.qr_code_img:
+            erros.append(f"{participante.nome}: QR Code não encontrado.")
+            continue
+        
+        try:
+            # Renderiza o template do e-mail com o contexto
+            contexto_email = {
+                'nome_participante': participante.nome,
+            }
+            corpo_email = render_to_string('core/email_qrcode_geral.html', contexto_email)
+
+            # Cria o e-mail
+            email = EmailMessage(
+                subject="Seu QR Code de Acesso para Eventos",
+                body=corpo_email,
+                from_email='nao-responda@sistema.com', # Um e-mail remetente genérico
+                to=[participante.email]
+            )
+            email.content_subtype = "html" # Define o conteúdo como HTML
+
+            # Anexa a imagem do QR Code
+            caminho_qr = participante.qr_code_img.path
+            email.attach_file(caminho_qr)
+
+            # Envia o e-mail
+            email.send()
+            enviados_com_sucesso += 1
+        
+        except Exception as e:
+            erros.append(f"Erro ao enviar para {participante.nome}: {str(e)}")
+
+    if enviados_com_sucesso > 0:
+        messages.success(request, f"{enviados_com_sucesso} e-mails com QR Code foram enviados com sucesso!")
+    if erros:
+        messages.error(request, f"Ocorreram erros: {', '.join(erros)}")
+
+    return redirect('lista_geral_participantes')

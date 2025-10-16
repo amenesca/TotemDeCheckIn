@@ -5,7 +5,19 @@
 {% block content %}
 <a href="{% url 'lista_eventos' %}" class="text-blue-600 hover:underline mb-6 block">&larr; Voltar para o painel de eventos</a>
 <div class="bg-white p-6 rounded-lg shadow-md">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Lista Geral de Participantes</h1>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Lista Geral de Participantes</h1>
+        
+        <form action="{% url 'enviar_emails_gerais_qrcode' %}" method="post" class="mt-4 sm:mt-0">
+            {% csrf_token %}
+            <button type="submit" 
+                    onclick="return confirm('Tem certeza que deseja enviar o QR Code por e-mail para TODOS os {{ participantes.count }} participantes cadastrados? Esta ação pode demorar um pouco.');"
+                    class="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">
+                📧 Enviar QR Code para Todos
+            </button>
+        </form>
+    </div>
+
     <div class="overflow-x-auto">
         <table class="min-w-full bg-white">
             <thead class="bg-gray-200">
@@ -38,4 +50,3 @@
     </div>
 </div>
 {% endblock %}
-

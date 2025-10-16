@@ -19,5 +19,8 @@ urlpatterns = [
     
     # ROTA PARA REMOVER A PRESENÇA DE UM PARTICIPANTE
     path('inscricao/<int:inscricao_id>/remover_presenca/', views.remover_presenca, name='remover_presenca'),
+
+    # --- NOVA ROTA PARA ENVIO GERAL DE E-MAILS ---
+    path('participantes/enviar_emails/', views.enviar_emails_gerais_qrcode, name='enviar_emails_gerais_qrcode'),
 ]
 

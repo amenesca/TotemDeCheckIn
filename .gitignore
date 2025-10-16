@@ -1,2 +1,3 @@
 sistema_checkin/db.sqlite3
 sistema_checkin/media/*
+*.pem
