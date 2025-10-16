@@ -13,6 +13,41 @@ from .forms import ParticipanteForm
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 
+# --- FUNÇÃO AUXILIAR ATUALIZADA ---
+def _enviar_qr_code_email(participante):
+    """
+    Função auxiliar que monta e envia o e-mail com QR Code para um participante.
+    Atualiza o campo 'ultimo_envio_email' se o envio for bem-sucedido.
+    Retorna True se o e-mail foi enviado com sucesso, False caso contrário.
+    """
+    if not participante.qr_code_img:
+        return False
+    
+    try:
+        contexto_email = {'nome_participante': participante.nome}
+        corpo_email = render_to_string('core/email_qrcode_geral.html', contexto_email)
+
+        email = EmailMessage(
+            subject="Seu QR Code de Acesso para Eventos",
+            body=corpo_email,
+            from_email=None,
+            to=[participante.email]
+        )
+        email.content_subtype = "html"
+        email.attach_file(participante.qr_code_img.path)
+        
+        email.send()
+
+        # --- MUDANÇA IMPORTANTE ---
+        # Se o e-mail foi enviado, atualiza o campo com a data e hora atuais
+        participante.ultimo_envio_email = timezone.now()
+        participante.save(update_fields=['ultimo_envio_email'])
+
+        return True
+    except Exception as e:
+        print(f"Erro ao enviar e-mail para {participante.nome}: {e}")
+        return False
+
 # --- Visões de Gestão de Eventos ---
 def lista_eventos(request):
     eventos = Evento.objects.all().order_by('-data')
@@ -95,27 +130,35 @@ def api_checkin(request, evento_id):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            # Tenta obter os dois possíveis identificadores do corpo da requisição
             id_unico_qr = data.get('id_unico_qr')
-            evento = get_object_or_404(Evento, id=evento_id)
-            participante = get_object_or_404(Participante, id_unico_qr=id_unico_qr)
+            matricula = data.get('matricula')
 
-            # --- LÓGICA MODIFICADA ---
-            # get_or_create busca uma inscrição existente ou cria uma nova se não existir.
-            # Isso lida elegantemente com participantes que não estavam pré-inscritos.
+            evento = get_object_or_404(Evento, id=evento_id)
+            participante = None
+
+            # --- LÓGICA DE BUSCA MODIFICADA ---
+            # Procura o participante pelo ID do QR Code ou pela Matrícula
+            if id_unico_qr:
+                participante = get_object_or_404(Participante, id_unico_qr=id_unico_qr)
+            elif matricula:
+                # Usamos .strip() para remover espaços em branco que o usuário possa digitar
+                participante = get_object_or_404(Participante, matricula=matricula.strip())
+            else:
+                # Se nenhum identificador for enviado, retorna um erro.
+                return JsonResponse({'status': 'erro', 'mensagem': 'Nenhum identificador (QR Code ou Matrícula) foi fornecido.'}, status=400)
+
+            # O resto da lógica de inscrição e check-in permanece exatamente a mesma
             inscricao, created = Inscricao.objects.get_or_create(
                 participante=participante,
                 evento=evento
             )
 
-            # Se o participante já tinha feito check-in, apenas retorne um aviso.
             if inscricao.status == 'PRESENTE':
                 return JsonResponse({'status': 'aviso', 'mensagem': f'{participante.nome} já realizou o check-in.'})
 
-            # Para todos os outros casos (seja um novo participante ou um que estava 'INSCRITO'),
-            # simplesmente registre a presença. A capacidade do evento é ignorada.
             inscricao.registrar_presenca()
 
-            # Fornece uma mensagem um pouco diferente se o participante não estava na lista original.
             if created:
                 mensagem = f'Check-in de {participante.nome} (não inscrito) realizado com sucesso!'
             else:
@@ -124,7 +167,7 @@ def api_checkin(request, evento_id):
             return JsonResponse({'status': 'sucesso', 'mensagem': mensagem})
 
         except Participante.DoesNotExist:
-            return JsonResponse({'status': 'erro', 'mensagem': 'QR Code inválido. Participante não encontrado.'}, status=404)
+            return JsonResponse({'status': 'erro', 'mensagem': 'Participante não encontrado. Verifique a matrícula ou o QR Code.'}, status=404)
         except Exception as e:
             return JsonResponse({'status': 'erro', 'mensagem': str(e)}, status=400)
             
@@ -134,14 +177,20 @@ def cadastro_geral(request):
     # Independentemente do método, inicializamos sempre os dois formulários
     manual_form = ParticipanteForm()
     
-    # Verificamos qual botão de submissão foi pressionado
     if request.method == 'POST':
         if 'manual_add' in request.POST:
-            # Se foi o botão manual, preenchemos esse formulário com os dados do POST
             manual_form = ParticipanteForm(request.POST)
             if manual_form.is_valid():
-                manual_form.save()
-                messages.success(request, f"Participante '{manual_form.cleaned_data['nome']}' cadastrado com sucesso!")
+                # Salva o participante no banco de dados
+                novo_participante = manual_form.save()
+                messages.success(request, f"Participante '{novo_participante.nome}' cadastrado com sucesso!")
+                
+                # --- MUDANÇA: ENVIA O E-MAIL AUTOMATICAMENTE ---
+                if _enviar_qr_code_email(novo_participante):
+                    messages.info(request, f"O QR Code foi enviado para o e-mail de {novo_participante.nome}.")
+                else:
+                    messages.error(request, f"Falha ao enviar o e-mail com QR Code para {novo_participante.nome}.")
+
                 return redirect('lista_geral_participantes')
 
         elif 'upload_csv' in request.POST:
@@ -229,49 +278,58 @@ def exportar_presenca_csv(request, evento_id):
 @require_POST
 def enviar_emails_gerais_qrcode(request):
     participantes = Participante.objects.all()
-    
     if not participantes:
-        messages.warning(request, "Não há participantes cadastrados para enviar e-mails.")
+        messages.warning(request, "Não há participantes cadastrados.")
         return redirect('lista_geral_participantes')
 
     enviados_com_sucesso = 0
     erros = []
-
     for participante in participantes:
-        if not participante.qr_code_img:
-            erros.append(f"{participante.nome}: QR Code não encontrado.")
-            continue
-        
-        try:
-            # Renderiza o template do e-mail com o contexto
-            contexto_email = {
-                'nome_participante': participante.nome,
-            }
-            corpo_email = render_to_string('core/email_qrcode_geral.html', contexto_email)
-
-            # Cria o e-mail
-            email = EmailMessage(
-                subject="Seu QR Code de Acesso para Eventos",
-                body=corpo_email,
-                from_email='nao-responda@sistema.com', # Um e-mail remetente genérico
-                to=[participante.email]
-            )
-            email.content_subtype = "html" # Define o conteúdo como HTML
-
-            # Anexa a imagem do QR Code
-            caminho_qr = participante.qr_code_img.path
-            email.attach_file(caminho_qr)
-
-            # Envia o e-mail
-            email.send()
+        if _enviar_qr_code_email(participante):
             enviados_com_sucesso += 1
-        
-        except Exception as e:
-            erros.append(f"Erro ao enviar para {participante.nome}: {str(e)}")
+        else:
+            erros.append(participante.nome)
 
     if enviados_com_sucesso > 0:
         messages.success(request, f"{enviados_com_sucesso} e-mails com QR Code foram enviados com sucesso!")
     if erros:
-        messages.error(request, f"Ocorreram erros: {', '.join(erros)}")
+        messages.error(request, f"Ocorreram falhas ao enviar e-mails para: {', '.join(erros)}")
 
+    return redirect('lista_geral_participantes')
+
+# --- NOVA VIEW PARA ENVIAR E-MAILS PENDENTES ---
+@require_POST
+def enviar_emails_pendentes(request):
+    # Filtra apenas os participantes que NUNCA receberam o e-mail
+    participantes_pendentes = Participante.objects.filter(ultimo_envio_email__isnull=True)
+    
+    if not participantes_pendentes:
+        messages.info(request, "Não há participantes com envios de e-mail pendentes.")
+        return redirect('lista_geral_participantes')
+
+    enviados_com_sucesso = 0
+    erros = []
+    for participante in participantes_pendentes:
+        if _enviar_qr_code_email(participante):
+            enviados_com_sucesso += 1
+        else:
+            erros.append(participante.nome)
+
+    if enviados_com_sucesso > 0:
+        messages.success(request, f"{enviados_com_sucesso} e-mails pendentes foram enviados com sucesso!")
+    if erros:
+        messages.error(request, f"Ocorreram falhas ao enviar e-mails para: {', '.join(erros)}")
+
+    return redirect('lista_geral_participantes')
+
+# --- NOVA VIEW PARA ENVIO INDIVIDUAL ---
+@require_POST
+def enviar_email_individual(request, participante_id):
+    participante = get_object_or_404(Participante, id=participante_id)
+    
+    if _enviar_qr_code_email(participante):
+        messages.success(request, f"E-mail com QR Code enviado com sucesso para {participante.nome}!")
+    else:
+        messages.error(request, f"Ocorreu um erro ao tentar enviar o e-mail para {participante.nome}.")
+        
     return redirect('lista_geral_participantes')

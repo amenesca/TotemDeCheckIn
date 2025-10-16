@@ -11,16 +11,27 @@
 
 <body class="bg-gray-800 text-white flex flex-col justify-center items-center h-screen m-0 p-4">
     <div class="w-full max-w-lg text-center">
-        <!-- Botão para voltar -->
         <a href="{% url 'detalhe_evento' evento.id %}" 
            class="absolute top-4 left-4 text-blue-400 hover:text-blue-300 hover:underline text-lg">
            &larr; Voltar para Detalhes do Evento
         </a>
 
         <h1 class="text-3xl font-bold mb-2">Check-in: {{ evento.nome }}</h1>
-        <p class="text-gray-300 mb-6">Aponte o QR Code para a câmera.</p>
+        <p class="text-gray-300 mb-6">Aponte o QR Code para a câmera ou digite a matrícula abaixo.</p>
 
         <div id="reader" class="w-full border-4 border-dashed border-gray-600 rounded-lg overflow-hidden"></div>
+
+        <div class="my-6 text-gray-300 font-semibold">OU</div>
+
+        <div class="w-full max-w-sm mx-auto">
+            <form id="manual-checkin-form">
+                <label for="matricula-input" class="block text-sm font-medium text-gray-200 mb-2">Fazer Check-in por Matrícula</label>
+                <div class="flex gap-2">
+                    <input type="text" id="matricula-input" name="matricula" class="block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Digite a matrícula..." required>
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Confirmar</button>
+                </div>
+            </form>
+        </div>
 
         <div id="result-container" class="mt-6 p-4 rounded-lg font-bold text-xl" style="display: none;">
             <span id="result-message"></span>
@@ -33,23 +44,19 @@
         document.addEventListener('DOMContentLoaded', () => {
             const resultContainer = document.getElementById('result-container');
             const resultMessage = document.getElementById('result-message');
+            const manualForm = document.getElementById('manual-checkin-form');
+            const matriculaInput = document.getElementById('matricula-input');
             let isScanning = true;
 
             function showMessage(message, type) {
                 resultContainer.style.display = 'block';
                 let bgColor, textColor;
                 if (type === 'sucesso') {
-                    bgColor = 'bg-green-500';
-                    textColor = 'text-white';
+                    bgColor = 'bg-green-500'; textColor = 'text-white';
                 } else if (type === 'erro') {
-                    bgColor = 'bg-red-500';
-                    textColor = 'text-white';
+                    bgColor = 'bg-red-500'; textColor = 'text-white';
                 } else if (type === 'aviso') {
-                    bgColor = 'bg-yellow-500';
-                    textColor = 'text-black';
-                } else {
-                    bgColor = 'bg-blue-500';
-                    textColor = 'text-white';
+                    bgColor = 'bg-yellow-500'; textColor = 'text-black';
                 }
                 resultContainer.className = `mt-6 p-4 rounded-lg font-bold text-xl ${bgColor} ${textColor}`;
                 resultMessage.textContent = message;
@@ -60,55 +67,58 @@
                 isScanning = true;
             }
 
-            function onScanSuccess(decodedText, decodedResult) {
+            function performCheckin(payload) {
                 if (!isScanning) return;
                 isScanning = false;
 
                 fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id_unico_qr: decodedText }),
+                    body: JSON.stringify(payload),
                 })
                 .then(response => response.json())
-                .then(data => {
-                    showMessage(data.mensagem, data.status);
-                })
-                .catch(error => {
-                    showMessage('Erro de comunicação com o servidor.', 'erro');
-                })
-                .finally(() => {
-                    setTimeout(resetScanner, 5000);
-                });
+                .then(data => { showMessage(data.mensagem, data.status); })
+                .catch(error => { showMessage('Erro de comunicação com o servidor.', 'erro'); })
+                .finally(() => { setTimeout(resetScanner, 3000); });
             }
 
-            function onScanFailure(error) {
-                // Ignora erros contínuos de leitura
+            // --- Lógica do QR Code ---
+            function onScanSuccess(decodedText, decodedResult) {
+                performCheckin({ id_unico_qr: decodedText });
             }
 
+            function onScanFailure(error) { /* Ignora erros */ }
+            
+            // --- Lógica do Formulário Manual ---
+            manualForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const matricula = matriculaInput.value.trim();
+                if (matricula) {
+                    performCheckin({ matricula: matricula });
+                    matriculaInput.value = '';
+                }
+            });
+
+            // --- LÓGICA DE DETECÇÃO E ESPELHAMENTO RESTAURADA ---
             const html5QrCode = new Html5Qrcode("reader");
             const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-            // 🔍 Detecta se é celular ou desktop
             const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
             const cameraConfig = isMobile 
-                ? { facingMode: "environment" }  // câmera traseira
-                : { facingMode: "user" };        // câmera frontal
+                ? { facingMode: "environment" }  // Câmera traseira para celular
+                : { facingMode: "user" };        // Câmera frontal para desktop
 
-            // 🔧 Inicia o leitor com ajuste dinâmico de espelhamento
             html5QrCode.start(cameraConfig, config, onScanSuccess, onScanFailure)
                 .then(() => {
                     const videoEl = document.querySelector("#reader video");
                     if (videoEl) {
-                        if (isMobile) {
-                            videoEl.style.transform = "none";        // não espelha no celular
-                        } else {
-                            videoEl.style.transform = "scaleX(-1)";  // espelha no notebook
-                        }
+                        // Aplica o espelhamento apenas se NÃO for um dispositivo móvel
+                        videoEl.style.transform = isMobile ? "none" : "scaleX(-1)";
                     }
                 })
                 .catch(err => {
-                    console.error("Erro ao iniciar a câmera:", err);
-                    showMessage("Erro ao iniciar a câmera. Verifique permissões e HTTPS (ngrok).", "erro");
+                    console.error("Não foi possível iniciar o leitor de QR Code.", err);
+                    showMessage("Erro ao iniciar a câmera. Verifique permissões.", "erro");
                 });
         });
     </script>

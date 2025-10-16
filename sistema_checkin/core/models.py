@@ -12,7 +12,13 @@ class Participante(models.Model):
     matricula = models.CharField(max_length=50, unique=True, verbose_name="Matrícula", db_index=True)
     id_unico_qr = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name="ID do QR Code")
     qr_code_img = models.ImageField(upload_to='qrcodes/', blank=True, null=True, verbose_name="Imagem do QR Code")
-
+    # --- NOVO CAMPO ---
+    ultimo_envio_email = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        verbose_name="Último Envio do E-mail"
+    )
+    
     def __str__(self):
         return self.nome
 

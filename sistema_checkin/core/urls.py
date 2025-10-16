@@ -22,5 +22,11 @@ urlpatterns = [
 
     # --- NOVA ROTA PARA ENVIO GERAL DE E-MAILS ---
     path('participantes/enviar_emails/', views.enviar_emails_gerais_qrcode, name='enviar_emails_gerais_qrcode'),
+
+    # --- NOVA ROTA PARA ENVIO INDIVIDUAL ---
+    path('participante/<int:participante_id>/enviar_email/', views.enviar_email_individual, name='enviar_email_individual'),
+
+    # --- NOVA ROTA PARA ENVIOS PENDENTES ---
+    path('participantes/enviar_pendentes/', views.enviar_emails_pendentes, name='enviar_emails_pendentes'),
 ]
 

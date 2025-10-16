@@ -8,14 +8,25 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 mb-6">
         <h1 class="text-3xl font-bold text-gray-800">Lista Geral de Participantes</h1>
         
-        <form action="{% url 'enviar_emails_gerais_qrcode' %}" method="post" class="mt-4 sm:mt-0">
-            {% csrf_token %}
-            <button type="submit" 
-                    onclick="return confirm('Tem certeza que deseja enviar o QR Code por e-mail para TODOS os {{ participantes.count }} participantes cadastrados? Esta ação pode demorar um pouco.');"
-                    class="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">
-                📧 Enviar QR Code para Todos
-            </button>
-        </form>
+        <div class="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0">
+            <form action="{% url 'enviar_emails_pendentes' %}" method="post">
+                {% csrf_token %}
+                <button type="submit"
+                        onclick="return confirm('Isso enviará o e-mail para todos os participantes que ainda não o receberam. Deseja continuar?');"
+                        class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                    📧 Enviar para Pendentes
+                </button>
+            </form>
+
+            <form action="{% url 'enviar_emails_gerais_qrcode' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" 
+                        onclick="return confirm('Tem certeza que deseja reenviar o QR Code para TODOS os {{ participantes.count }} participantes?');"
+                        class="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">
+                    Reenviar para Todos
+                </button>
+            </form>
+        </div>
     </div>
 
     <div class="overflow-x-auto">
@@ -24,8 +35,9 @@
                 <tr>
                     <th class="py-2 px-4 text-left">Nome</th>
                     <th class="py-2 px-4 text-left">Matrícula</th>
-                    <th class="py-2 px-4 text-left">Email</th>
+                    <th class="py-2 px-4 text-left">Email / Status do Envio</th>
                     <th class="py-2 px-4 text-center">QR Code</th>
+                    <th class="py-2 px-4 text-left">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -33,16 +45,33 @@
                 <tr class="border-b">
                     <td class="py-2 px-4">{{ participante.nome }}</td>
                     <td class="py-2 px-4">{{ participante.matricula }}</td>
-                    <td class="py-2 px-4">{{ participante.email }}</td>
+                    <td class="py-2 px-4">
+                        {{ participante.email }}
+                        {% if participante.ultimo_envio_email %}
+                            <span class="block text-xs text-green-600">
+                                (Enviado em: {{ participante.ultimo_envio_email|date:"d/m/y H:i" }})
+                            </span>
+                        {% else %}
+                            <span class="block text-xs text-red-600 font-semibold">(Pendente)</span>
+                        {% endif %}
+                    </td>
                     <td class="py-2 px-4 flex justify-center">
                         {% if participante.qr_code_img %}
                             <img src="{{ participante.qr_code_img.url }}" alt="QR Code de {{ participante.nome }}" class="h-20 w-20">
                         {% endif %}
                     </td>
+                    <td class="py-2 px-4">
+                        <form action="{% url 'enviar_email_individual' participante.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="bg-blue-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-blue-600 transition-colors">
+                                Enviar E-mail
+                            </button>
+                        </form>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="py-4 px-4 text-center text-gray-500">Nenhum participante cadastrado ainda.</td>
+                    <td colspan="5" class="py-4 px-4 text-center text-gray-500">Nenhum participante cadastrado ainda.</td>
                 </tr>
                 {% endfor %}
             </tbody>
