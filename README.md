@@ -10,7 +10,7 @@ Este é um sistema desenvolvido em Django para a gestão de check-in em eventos.
 - **Check-in em Tempo Real:** Uma página de "totem" que usa a câmera para ler os QR Codes e registrar a presença instantaneamente.
 - **Controle de Vagas e Listas:** Gestão de presentes, inscritos aguardando e lista de espera.
 - **Exportação de Dados:** Exporte a lista de presença de um evento para um arquivo CSV.
-- **Envio de QR Code por E-mail:** Funcionalidade para enviar o QR Code permanente para todos os participantes cadastrados.
+- **Envio de QR Code por E-mail:** Funcionalidade para enviar o QR Code permanente para todos os participantes cadastrados, utilizando um servidor SMTP real (Gmail).
 - **Suporte a HTTPS local:** Roda em um servidor de desenvolvimento seguro para permitir o uso da câmera em navegadores modernos.
 
 ## Tecnologias Utilizadas
@@ -20,7 +20,8 @@ Este é um sistema desenvolvido em Django para a gestão de check-in em eventos.
 - **Bibliotecas Python:**
   - `pandas` para manipulação de arquivos CSV.
   - `qrcode` e `pillow` para geração das imagens de QR Code.
-  - `django-extensions`, `werkzeug`, `pyOpenSSL` para rodar um servidor de desenvolvimento com suporte a HTTPS.
+  - `django-extensions`, `werkzeug`, `pyOpenSSL` para rodar um servidor de desenvolvimento com HTTPS.
+  - `python-dotenv` para gerenciar variáveis de ambiente de forma segura.
 
 ---
 
@@ -41,8 +42,7 @@ git clone <url-do-seu-repositorio>
 cd <nome-da-pasta-do-projeto>
 ```
 
-**2. Crie e Ative um Ambiente Virtual (Virtual Environment)**
-É uma boa prática isolar as dependências do projeto.
+**2. Crie e Ative um Ambiente Virtual**
 ```bash
 # Para Windows
 python -m venv venv
@@ -63,6 +63,7 @@ pillow
 django-extensions
 werkzeug
 pyOpenSSL
+python-dotenv
 ```
 Em seguida, instale todas as dependências com um único comando:
 ```bash
@@ -70,38 +71,94 @@ pip install -r requirements.txt
 ```
 
 **4. Execute as Migrações do Banco de Dados**
-Este comando cria o arquivo de banco de dados (`db.sqlite3`) e as tabelas necessárias.
 ```bash
 python manage.py migrate
 ```
 
 **5. Crie um Superusuário**
-Você precisará de um usuário administrador para acessar o painel de controle do Django.
 ```bash
 python manage.py createsuperuser
 ```
-Siga as instruções para criar seu usuário.
 
-**6. Gere o Certificado SSL Local**
-Para que o navegador permita o acesso à câmera, o site precisa ser servido via HTTPS. Este comando cria um certificado autoassinado válido por 1 ano, apenas para desenvolvimento.
+**6. Gere o Certificado SSL Local (para HTTPS)**
 ```bash
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes -subj "/CN=localhost"
 ```
-**Importante:** Adicione `*.pem` ao seu arquivo `.gitignore` para não enviar as chaves para o repositório.
 
-## Uso
+---
+
+## Configuração para Envio de E-mails (Gmail)
+
+Para testar o envio de e-mails, configure o sistema para usar um servidor SMTP do Gmail.
+
+**1. Gere uma "Senha de App" no Google**
+Por segurança, o Google exige uma senha específica para aplicações.
+- **Ative a Verificação em Duas Etapas** na sua Conta Google.
+- Vá para a página de **[Senhas de App](https://myaccount.google.com/apppasswords)**.
+- Selecione "E-mail" como app e "Computador Windows" como dispositivo, e clique em **Gerar**.
+- **Copie a senha de 16 caracteres gerada**. Você usará esta senha, e não a sua senha principal do Gmail.
+
+**2. Crie um Arquivo `.env` para as Credenciais**
+Nunca coloque senhas diretamente no código.
+- Na raiz do projeto, crie um arquivo chamado `.env`.
+- Adicione suas credenciais a ele:
+  ```
+  # .env
+  EMAIL_HOST_USER='seu-email@gmail.com'
+  EMAIL_HOST_PASSWORD='sua-senha-de-app-de-16-caracteres'
+  ```
+
+**3. Adicione os Arquivos Sensíveis ao `.gitignore`**
+Garanta que suas chaves e senhas não sejam enviadas para o Git. Abra ou crie o arquivo `.gitignore` e adicione as seguintes linhas:
+```
+# Arquivos de ambiente
+.env
+
+# Certificados SSL de desenvolvimento
+*.pem
+```
+
+**4. Configure o `settings.py`**
+No seu arquivo `settings.py`, adicione o código para carregar as variáveis de ambiente e configurar o serviço de e-mail.
+```python
+# settings.py
+
+import os
+from dotenv import load_dotenv
+from pathlib import Path # Certifique-se que Path está importado
+
+# ...
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+# ...
+
+# CONFIGURAÇÃO DE E-MAIL
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+```
+
+---
+
+## Como Rodar a Aplicação
 
 **1. Inicie o Servidor de Desenvolvimento**
-Use o comando abaixo para iniciar o servidor seguro. O endereço `0.0.0.0` torna o servidor acessível para outros dispositivos na mesma rede (como seu celular).
+O endereço `0.0.0.0` torna o servidor acessível para outros dispositivos na mesma rede (como seu celular).
 ```bash
 python manage.py runserver_plus --cert-file cert.pem --key-file key.pem 0.0.0.0:8000
 ```
 
 **2. Acesse a Aplicação**
-- **No seu computador:** Abra o navegador e acesse `https://localhost:8000` ou `https://127.0.0.1:8000`
-- **Em outro dispositivo na mesma rede (ex: celular):** Acesse `https://<ip-do-seu-computador>:8000`
+- **No seu computador:** `https://localhost:8000`
+- **Em outro dispositivo na mesma rede:** `https://<ip-do-seu-computador>:8000`
 
 > **Aviso de Segurança:** O navegador exibirá um alerta de "conexão não particular". Isso é esperado. Clique em "Avançado" e depois em "Ir para o site (não seguro)" para continuar.
 
 **3. Painel de Administração**
-Para gerenciar eventos e ver os modelos de dados diretamente, acesse o painel de administração em `https://localhost:8000/admin` e faça login com o superusuário criado anteriormente.
+Acesse em `https://localhost:8000/admin` e faça login com o superusuário criado.
