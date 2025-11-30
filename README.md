@@ -5,9 +5,13 @@ Este é um sistema desenvolvido em Django para a gestão de check-in em eventos.
 <h3 align="center">Screenshots do Sistema</h3>
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/0d111134-501c-4169-9596-5b5e5d761ebc" width="32%" alt="Tela 1" />
-  <img src="https://github.com/user-attachments/assets/2445c745-e54c-413f-86e0-231abe739151" width="32%" alt="Tela 2" />
-  <img src="https://github.com/user-attachments/assets/8bb66ccd-7805-43b1-9413-86f9f325672c" width="32%" alt="Tela 3" />
+  <img src="https://github.com/user-attachments/assets/0d111134-501c-4169-9596-5b5e5d761ebc" width="700" alt="Tela do Sistema 1" />
+  <br/><br/>
+  
+  <img src="https://github.com/user-attachments/assets/2445c745-e54c-413f-86e0-231abe739151" width="700" alt="Tela do Sistema 2" />
+  <br/><br/>
+
+  <img src="https://github.com/user-attachments/assets/8bb66ccd-7805-43b1-9413-86f9f325672c" width="700" alt="Tela do Sistema 3" />
 </div>
 
 ## Funcionalidades Principais
