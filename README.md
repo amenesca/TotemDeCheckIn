@@ -2,9 +2,15 @@
 
 Este é um sistema desenvolvido em Django para a gestão de check-in em eventos. A aplicação permite cadastrar participantes, gerar QR Codes únicos para cada um, gerenciar eventos e realizar o check-in de forma rápida utilizando a câmera de um computador ou totem.
 
-<img width="1287" height="976" alt="Captura de tela 2025-11-30 125518" src="https://github.com/user-attachments/assets/0d111134-501c-4169-9596-5b5e5d761ebc" />
-<img width="1255" height="940" alt="Captura de tela 2025-11-30 125609" src="https://github.com/user-attachments/assets/2445c745-e54c-413f-86e0-231abe739151" />
-<img width="767" height="976" alt="Captura de tela 2025-11-30 125745" src="https://github.com/user-attachments/assets/88ba66af-fe4f-43a2-9e83-8257b33b37a3" />
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/0d111134-501c-4169-9596-5b5e5d761ebc" width="700" alt="Tela do Sistema 1" />
+  <br/><br/>
+  
+  <img src="https://github.com/user-attachments/assets/2445c745-e54c-413f-86e0-231abe739151" width="700" alt="Tela do Sistema 2" />
+  <br/><br/>
+
+  <img src="https://github.com/user-attachments/assets/8bb66ccd-7805-43b1-9413-86f9f325672c" width="700" alt="Tela do Sistema 3" />
+</div>
 
 ## Funcionalidades Principais
 
