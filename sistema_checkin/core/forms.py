@@ -12,7 +12,7 @@ class ParticipanteForm(forms.ModelForm):
         }
         labels = {
             'nome': 'Nome Completo',
-            'matricula': 'Matrícula',
+            'matricula': 'CPF',
             'email': 'E-mail',
         }
 

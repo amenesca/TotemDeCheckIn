@@ -13,6 +13,7 @@ from .forms import ParticipanteForm
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 
+
 # --- FUNÇÃO AUXILIAR ATUALIZADA ---
 def _enviar_qr_code_email(participante):
     """
@@ -50,14 +51,25 @@ def _enviar_qr_code_email(participante):
 
 # --- Visões de Gestão de Eventos ---
 def lista_eventos(request):
-    eventos = Evento.objects.all().order_by('-data')
-    return render(request, 'core/lista_eventos.html', {'eventos': eventos})
+    from itertools import groupby
+    from django.utils.timezone import localtime
+
+    # Ordena por data
+    eventos = Evento.objects.all().order_by('data')
+
+    # Agrupa os eventos pelo dia (ignorando hora)
+    eventos_por_dia = {}
+    for data, grupo in groupby(eventos, key=lambda e: localtime(e.data).date()):
+        eventos_por_dia[data] = list(grupo)
+
+    return render(request, 'core/lista_eventos.html', {'eventos_por_dia': eventos_por_dia})
+
 
 def detalhe_evento(request, evento_id):
     evento = get_object_or_404(Evento, id=evento_id)
     inscricoes = evento.inscricoes.all()
     inscritos_aguardando = inscricoes.filter(status='INSCRITO').order_by('participante__nome')
-    presentes = inscricoes.filter(status='PRESENTE').order_by('participante__nome')
+    presentes = inscricoes.filter(status='PRESENTE').order_by('-data_checkin')
     lista_espera = inscricoes.filter(status='LISTA_ESPERA').order_by('data_entrada_espera')
     vagas_disponiveis = evento.vagas - presentes.count()
     context = {
@@ -123,32 +135,46 @@ def inscrever_via_csv(request, evento_id):
 # --- Visões da Página de Check-in ---
 def pagina_checkin(request, evento_id):
     evento = get_object_or_404(Evento, id=evento_id)
-    return render(request, 'core/checkin.html', {'evento': evento})
+    vagas_disponiveis = evento.vagas - evento.inscricoes.filter(status='PRESENTE').count()
+    return render(request, 'core/checkin.html', {
+        'evento': evento,
+        'vagas_disponiveis': vagas_disponiveis
+    })
 
+@csrf_exempt
 @csrf_exempt
 def api_checkin(request, evento_id):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            # Tenta obter os dois possíveis identificadores do corpo da requisição
             id_unico_qr = data.get('id_unico_qr')
             matricula = data.get('matricula')
 
             evento = get_object_or_404(Evento, id=evento_id)
             participante = None
 
-            # --- LÓGICA DE BUSCA MODIFICADA ---
-            # Procura o participante pelo ID do QR Code ou pela Matrícula
+            # --- BUSCA PELO QR CODE OU CPF ---
             if id_unico_qr:
                 participante = get_object_or_404(Participante, id_unico_qr=id_unico_qr)
-            elif matricula:
-                # Usamos .strip() para remover espaços em branco que o usuário possa digitar
-                participante = get_object_or_404(Participante, matricula=matricula.strip())
-            else:
-                # Se nenhum identificador for enviado, retorna um erro.
-                return JsonResponse({'status': 'erro', 'mensagem': 'Nenhum identificador (QR Code ou Matrícula) foi fornecido.'}, status=400)
 
-            # O resto da lógica de inscrição e check-in permanece exatamente a mesma
+            elif matricula:
+                # Remove espaços, pontos e traços do CPF digitado
+                cpf_digitado = matricula.strip().replace('.', '').replace('-', '')
+
+                # Procura participante ignorando formatação
+                for p in Participante.objects.all():
+                    cpf_salvo = p.matricula.replace('.', '').replace('-', '')
+                    if cpf_salvo == cpf_digitado:
+                        participante = p
+                        break
+
+                if not participante:
+                    return JsonResponse({'status': 'erro', 'mensagem': 'Participante não encontrado. Verifique o CPF.'}, status=404)
+
+            else:
+                return JsonResponse({'status': 'erro', 'mensagem': 'Nenhum identificador (QR Code ou CPF) foi fornecido.'}, status=400)
+
+            # --- REGISTRO DO CHECK-IN ---
             inscricao, created = Inscricao.objects.get_or_create(
                 participante=participante,
                 evento=evento
@@ -160,20 +186,96 @@ def api_checkin(request, evento_id):
             inscricao.registrar_presenca()
 
             if created:
-                mensagem = f'Check-in de {participante.nome} (não inscrito) realizado com sucesso!'
+                mensagem = f'Check-in de {participante.nome} realizado com sucesso!'
             else:
-                mensagem = f'Check-in de {participante.nome} realizado!'
-            
+                mensagem = f'Check-in de {participante.nome} realizado com sucesso!'
+
             return JsonResponse({'status': 'sucesso', 'mensagem': mensagem})
 
         except Participante.DoesNotExist:
-            return JsonResponse({'status': 'erro', 'mensagem': 'Participante não encontrado. Verifique a matrícula ou o QR Code.'}, status=404)
+            return JsonResponse({'status': 'erro', 'mensagem': 'Participante não encontrado. Verifique o CPF ou QR Code.'}, status=404)
         except Exception as e:
             return JsonResponse({'status': 'erro', 'mensagem': str(e)}, status=400)
-            
+
     return JsonResponse({'status': 'erro', 'mensagem': 'Método inválido.'}, status=405)
+
     
 def cadastro_geral(request):
+    manual_form = ParticipanteForm()
+
+    if request.method == 'POST':
+        # --- CADASTRO MANUAL ---
+        if 'manual_add' in request.POST:
+            manual_form = ParticipanteForm(request.POST)
+            if manual_form.is_valid():
+                novo_participante = manual_form.save()
+                messages.success(request, f"Participante '{novo_participante.nome}' cadastrado com sucesso!")
+
+                if _enviar_qr_code_email(novo_participante):
+                    messages.info(request, f"O QR Code foi enviado para o e-mail de {novo_participante.nome}.")
+                else:
+                    messages.error(request, f"Falha ao enviar o e-mail com QR Code para {novo_participante.nome}.")
+                return redirect('lista_geral_participantes')
+
+        # --- IMPORTAÇÃO VIA CSV ---
+        elif 'upload_csv' in request.POST:
+            arquivo_csv = request.FILES.get('arquivo_csv')
+            if not arquivo_csv:
+                messages.error(request, "Nenhum arquivo CSV foi enviado.")
+                return redirect('cadastro_geral')
+
+            try:
+                conteudo_arquivo = arquivo_csv.read().decode('utf-8-sig')
+                linhas = [l for l in conteudo_arquivo.splitlines() if l.strip()]
+                reader = csv.reader(linhas)
+
+                # Ignora o cabeçalho
+                next(reader, None)
+
+                criados, atualizados, erros = 0, 0, []
+
+                for i, row in enumerate(reader, start=2):
+                    # Esperado: id,nome,matricula,email
+                    if len(row) < 4:
+                        erros.append(f"Linha {i}: formato incorreto (esperado id,nome,matricula,email).")
+                        continue
+
+                    try:
+                        nome = row[1].strip()
+                        matricula = row[2].strip()
+                        email = row[3].strip()
+                    except Exception as e:
+                        erros.append(f"Linha {i}: erro ao ler campos ({e}).")
+                        continue
+
+                    if not nome or not matricula or not email:
+                        erros.append(f"Linha {i}: campos vazios.")
+                        continue
+
+                    try:
+                        participante, created = Participante.objects.update_or_create(
+                            matricula=matricula,
+                            defaults={'nome': nome, 'email': email}
+                        )
+                        if created:
+                            criados += 1
+                        else:
+                            atualizados += 1
+                    except Exception as e:
+                        erros.append(f"Linha {i}: erro ao salvar ({e}).")
+                        continue
+
+                messages.success(request, f"Importação concluída: {criados} criados e {atualizados} atualizados.")
+                if erros:
+                    messages.warning(request, "Problemas encontrados:\n" + " | ".join(erros))
+
+            except Exception as e:
+                messages.error(request, f"Erro ao processar o CSV: {e}")
+
+            return redirect('lista_geral_participantes')
+
+    return render(request, 'core/cadastro_geral.html', {'manual_form': manual_form})
+
     # Independentemente do método, inicializamos sempre os dois formulários
     manual_form = ParticipanteForm()
     
@@ -274,6 +376,29 @@ def exportar_presenca_csv(request, evento_id):
             inscricao.data_checkin.strftime('%d/%m/%Y %H:%M:%S') if inscricao.data_checkin else ''
         ])
     return response
+    
+def exportar_todas_presencas_csv(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="presenca_todos_eventos.csv"'
+    response.write(u'\ufeff'.encode('utf8'))  # Para abrir corretamente no Excel
+    writer = csv.writer(response)
+
+    writer.writerow(['Evento', 'Nome', 'Matrícula', 'Email', 'Horário do Check-in'])
+
+    eventos = Evento.objects.all().order_by('data')
+    for evento in eventos:
+        presentes = evento.inscricoes.filter(status='PRESENTE').order_by('participante__nome')
+        for inscricao in presentes:
+            writer.writerow([
+                evento.nome,
+                inscricao.participante.nome,
+                inscricao.participante.matricula,
+                inscricao.participante.email,
+                inscricao.data_checkin.strftime('%d/%m/%Y %H:%M:%S') if inscricao.data_checkin else ''
+            ])
+
+    return response
+
 
 @require_POST
 def enviar_emails_gerais_qrcode(request):

@@ -24,7 +24,7 @@
     <h2 class="text-2xl font-semibold mb-4">Inscrever Participantes no Evento</h2>
     <form action="{% url 'inscrever_via_csv' evento.id %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        <label for="arquivo_csv" class="block text-gray-700 font-medium mb-2">Enviar ficheiro CSV (matrícula,nome)</label>
+        <label for="arquivo_csv" class="block text-gray-700 font-medium mb-2">Enviar ficheiro CSV (CPF,nome)</label>
         <input type="file" name="arquivo_csv" id="arquivo_csv" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
         <button type="submit" class="mt-4 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors">Inscrever</button>
     </form>
@@ -42,7 +42,7 @@
         <table class="min-w-full bg-white">
             <thead class="bg-green-100">
                 <tr>
-                    <th class="py-2 px-4 text-left">Nome</th><th class="py-2 px-4 text-left">Matrícula</th><th class="py-2 px-4 text-left">Horário do Check-in</th><th class="py-2 px-4 text-left">Ação</th>
+                    <th class="py-2 px-4 text-left">Nome</th><th class="py-2 px-4 text-left">CPF</th><th class="py-2 px-4 text-left">Horário do Check-in</th><th class="py-2 px-4 text-left">Ação</th>
                 </tr>
             </thead>
             <tbody>
@@ -70,7 +70,7 @@
     <h3 class="text-xl font-semibold text-gray-700 mb-3">Inscritos (Aguardando Check-in) - {{ inscritos_aguardando.count }}</h3>
     <div class="overflow-x-auto">
         <table class="min-w-full bg-white">
-            <thead class="bg-gray-200"><tr><th class="py-2 px-4 text-left">Nome</th><th class="py-2 px-4 text-left">Matrícula</th></tr></thead>
+            <thead class="bg-gray-200"><tr><th class="py-2 px-4 text-left">Nome</th><th class="py-2 px-4 text-left">CPF</th></tr></thead>
             <tbody>
                 {% for inscricao in inscritos_aguardando %}
                 <tr class="border-b"><td class="py-2 px-4">{{ inscricao.participante.nome }}</td><td class="py-2 px-4">{{ inscricao.participante.matricula }}</td></tr>
@@ -89,7 +89,7 @@
         <table class="min-w-full bg-white">
             <thead class="bg-yellow-100">
                 <tr>
-                    <th class="w-16 py-2 px-4 text-left">Posição</th><th class="py-2 px-4 text-left">Nome</th><th class="py-2 px-4 text-left">Matrícula</th><th class="py-2 px-4 text-left">Ação</th>
+                    <th class="w-16 py-2 px-4 text-left">Posição</th><th class="py-2 px-4 text-left">Nome</th><th class="py-2 px-4 text-left">CPF</th><th class="py-2 px-4 text-left">Ação</th>
                 </tr>
             </thead>
             <tbody>

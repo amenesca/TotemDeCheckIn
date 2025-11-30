@@ -16,6 +16,8 @@ urlpatterns = [
     path('api/checkin/<int:evento_id>/', views.api_checkin, name='api_checkin'),
     path('inscricao/<int:inscricao_id>/promover/', views.promover_participante, name='promover_participante'),
     path('evento/<int:evento_id>/exportar_csv/', views.exportar_presenca_csv, name='exportar_presenca_csv'),
+    path('eventos/exportar_todos_csv/', views.exportar_todas_presencas_csv, name='exportar_todas_presencas_csv'),
+
     
     # ROTA PARA REMOVER A PRESENÇA DE UM PARTICIPANTE
     path('inscricao/<int:inscricao_id>/remover_presenca/', views.remover_presenca, name='remover_presenca'),

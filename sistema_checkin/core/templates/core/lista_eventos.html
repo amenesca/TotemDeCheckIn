@@ -18,25 +18,69 @@
         <a href="{% url 'lista_geral_participantes' %}" class="w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition-colors duration-300">
             Ver Todos os Participantes e QR Codes
         </a>
+		<a href="{% url 'exportar_todas_presencas_csv' %}" class="w-full text-center bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300">
+			📥 Baixar Presença de Todos os Eventos (CSV)
+		</a>
+
     </div>
 </div>
 
 <!-- SEÇÃO DE EVENTOS PROGRAMADOS -->
 <div class="bg-white p-6 rounded-lg shadow-md">
     <h2 class="text-2xl font-semibold text-gray-800 border-b pb-2 mb-4">Eventos Programados</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for evento in eventos %}
-        <a href="{% url 'detalhe_evento' evento.id %}" class="block bg-gray-50 p-6 rounded-lg border border-gray-200 hover:shadow-xl hover:border-blue-500 hover:scale-105 transition-all duration-300">
-            <h3 class="text-xl font-bold text-blue-700">{{ evento.nome }}</h3>
-            <p class="text-gray-600 mt-2">Data: {{ evento.data|date:"d/m/Y" }}</p>
-            <p class="text-gray-500">Vagas: {{ evento.vagas }}</p>
-        </a>
-        {% empty %}
-        <p class="text-gray-500 col-span-full">
-            Nenhum evento cadastrado ainda. Crie um no <a href="/admin" class="text-blue-600 hover:underline">painel de administração</a>.
-        </p>
-        {% endfor %}
-    </div>
-</div>
-{% endblock %}
 
+    {% if eventos_por_dia %}
+        {% for data, eventos in eventos_por_dia.items %}
+            <div class="border border-gray-200 rounded-lg mb-4 shadow-sm">
+                <button 
+                    onclick="toggleEventos('{{ data }}')" 
+                    class="w-full text-left flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition-colors rounded-t-lg">
+                    <span class="text-xl font-semibold text-blue-700">📅 {{ data|date:"l, d/m/Y" }}</span>
+                    <span id="seta-{{ data }}" class="text-gray-600 transition-transform">▼</span>
+                </button>
+
+                <div id="eventos-{{ data }}" class="hidden p-4 bg-white">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for evento in eventos %}
+                            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 hover:shadow-xl hover:border-blue-500 hover:scale-105 transition-all duration-300 flex flex-col justify-between">
+							<div>
+								<a href="{% url 'detalhe_evento' evento.id %}">
+									<h3 class="text-xl font-bold text-blue-700 hover:underline">{{ evento.nome }}</h3>
+								</a>
+								<p class="text-gray-600 mt-2">Horário: {{ evento.data|date:"H:i" }}</p>
+								<p class="text-gray-500">Vagas: {{ evento.vagas }}</p>
+							</div>
+
+							<!-- Botão para exportar CSV -->
+							<a href="{% url 'exportar_presenca_csv' evento.id %}" 
+							   class="mt-4 inline-block text-center bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+								📥 Baixar Presença (CSV)
+							</a>
+							</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-gray-500">Nenhum evento cadastrado ainda.</p>
+    {% endif %}
+</div>
+
+<script>
+    // Função para expandir/retrair os blocos de eventos por dia
+    function toggleEventos(data) {
+        const eventosDiv = document.getElementById(`eventos-${data}`);
+        const seta = document.getElementById(`seta-${data}`);
+        
+        if (eventosDiv.classList.contains('hidden')) {
+            eventosDiv.classList.remove('hidden');
+            seta.textContent = '▲';
+        } else {
+            eventosDiv.classList.add('hidden');
+            seta.textContent = '▼';
+        }
+    }
+</script>
+
+{% endblock %}
